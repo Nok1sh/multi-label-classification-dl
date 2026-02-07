@@ -1,21 +1,18 @@
 import streamlit as st
 import numpy as np
 import torch
-import cv2
 
 from PIL import Image
-from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-from pytorch_grad_cam.utils.image import show_cam_on_image
 
 from cnn.base_model import ResNetModel
 from data.dataset_class import MultiLabelDataset
+from cnn.utils import predict_model, visualize_activity_map
+from ui_style import colored_progress, colored_button
 
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
 
 @st.cache_resource
 def load_model():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = ResNetModel.load_checkpoint(0)
     model.unfreeze_last_layer
     model.to(device)
@@ -25,66 +22,34 @@ def load_model():
 
 model = load_model()
 
-target_layer = [model.model.layer4[-1].conv2]
-
-cam = GradCAM(
-    model=model.model,
-    target_layers=target_layer
-)
-
 classes = MultiLabelDataset.CLASSES
 
 
-def predict_model(img):
+st.title("Multi-Label Classification")
 
-    tags = []
+st.set_page_config(layout="wide")
 
-    img = ResNetModel.TRANSFORM(img).unsqueeze(0).to(device)
-
-    pred = model.predict_proba(img)
-
-    cls_ind = 0
-    for cls, p in zip(classes.values(), pred.numpy()[0]):
-        if p >= 0.5:
-            tags.append((cls, round(float(p), 2), cls_ind))
-        cls_ind += 1
-        
-    return sorted(tags, key=lambda x: x[1], reverse=True)
-
-def visualize_activity_map(img, cls_id):
-
-    image = ResNetModel.TRANSFORM(img).unsqueeze(0).to(device)
-
-    targets = [ClassifierOutputTarget(cls_id)]
-
-    cam = GradCAM(model=model.model, target_layers=[model.model.layer4[-1].conv2])
-
-    grayscale_cam = cam(input_tensor=image, targets=targets)[0]
-
-    h, w, _ = img.shape
-    grayscale_cam = cv2.resize(grayscale_cam, (w, h))
-
-    rgb_img = np.float32(img) / 255.0
-
-    visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
-
-    return visualization
-
+colored_button()
 
 uploaded_file = st.file_uploader("Browse file", type=["jpg", "jpeg", "png"])
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 if uploaded_file is not None:
+    current_file_name = uploaded_file.name
+
+    if "last_file_name" not in st.session_state or st.session_state.last_file_name != current_file_name:
+        st.session_state.clear()
+        st.session_state.last_file_name = current_file_name
 
     img = np.array(Image.open(uploaded_file).convert('RGB'))
 
     with col1:
         st.image(img)
 
-    if st.button("Predict model"):
+    if st.button("🔍 Predict"):
         with st.spinner("Prediction..."):
-            results = predict_model(img)
+            results = predict_model(model, img)
             st.session_state.results = results
 
     if "results" in st.session_state:
@@ -92,10 +57,21 @@ if uploaded_file is not None:
             st.subheader("Classes")
             for cls, p, ind in st.session_state.results:
                 st.write(cls)
-                st.progress(p, text=f"{p}")
+                colored_progress(p)
 
-    if st.button("Class Activation Map"):
-        with col1:
-            overlay = visualize_activity_map(img, 5)
-            st.subheader(f"Class: {list(classes.values())[5]}")
-            st.image(overlay)
+            
+            class_options = [(ind, cls) for cls, _, ind in st.session_state.results]
+        
+        with col3:
+            selected = st.selectbox(
+                "Select class for Grad-CAM:",
+                options=class_options,
+                format_func=lambda x: x[1]
+            )
+            if st.button("🖼️Class Activation Map"):
+                with col1:
+                    overlay = visualize_activity_map(model, img, selected[0])
+                    st.subheader(f"Class Activation Map: {list(classes.values())[selected[0]]}")
+                    st.image(overlay)
+
+    
