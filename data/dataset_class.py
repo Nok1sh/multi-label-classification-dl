@@ -10,36 +10,63 @@ from PIL import Image
 class MultiLabelDataset(Dataset):
 
     CLASSES = {
-        '/m/05czz6l': 'Mountain', 
-        '/m/015p6': 'Forest', 
-        '/m/0cgh4': 'Goose', 
-        '/m/0k4j': 'Airplane', 
-        '/m/01yrx': 'Person', 
-        '/m/0bt9lr': 'Cat', 
-        '/m/02_41': 'Dog', 
-        '/m/02zr8': 'Water', 
-        '/m/09ld4': 'Car', 
-        '/m/0dbvp': 'Building', 
-        '/m/09d_r': 'Snow', 
-        '/m/01g317': 'Bird', 
-        '/m/06gfj': 'Road', 
-        '/m/06_dn': 'Train', 
-        '/m/07jdr': 'Fire', 
-        '/m/0838f': 'Frog'
+        '/m/05czz6l': 'Mountain',
+        '/m/015p6': 'Forest',
+        '/m/019jd': 'Goose',
+        '/m/0bt_c3': 'Airplane',
+        '/m/0cgh4': 'Person',
+        '/m/0k4j': 'Cat',
+        '/m/01yrx': 'Dog',
+        '/m/01mzpv': 'Water',
+        '/m/0csby': 'Car',
+        '/m/01m3v': 'Building',
+        '/m/0bt9lr': 'Snow',
+        '/m/02_41': 'Bird',
+        '/m/0ch_cf': 'Road',
+        '/m/0c9ph5': 'Train',
+        '/m/02wbm': 'Fire',
+        '/m/02zr8': 'Frog',
+        '/m/09ld4': 'Bridge',
+        '/m/0dbvp': 'Cloud',
+        '/m/08t9c_': 'Flower',
+        '/m/03k3r': 'Boat',
+        '/m/09d_r': 'Grass',
+        '/m/01g317': 'Fish',
+        '/m/06gfj': 'Chair',
+        '/m/01bqvp': 'Table',
+        '/m/06_dn': 'Book',
+        '/m/06m_p': 'Computer',
+        '/m/04bcr3': 'Food',
+        '/m/07jdr': 'Sky',
+        '/m/07j7r': 'Horse',
+        '/m/0838f': 'Window',
+        '/m/0d4v4': 'Tree'
         }
     
-    TRANSFORM = v2.Compose(
+    TRANSFORM_TRAIN = v2.Compose(
         [
             v2.ToImage(),
             v2.Resize(256),
-            v2.CenterCrop(224),
+            v2.RandomCrop(224),
+            v2.RandomHorizontalFlip(p=0.5),
+            v2.ColorJitter(brightness=0.2, contrast=0.2),
+            v2.RandomRotation(degrees=15),
             v2.ToTensor(),
             v2.ToDtype(torch.float32),
             v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ]
     )
 
-    def __init__(self, path, transform=TRANSFORM) -> None:
+    TRANSFORM_VAL = v2.Compose([
+        v2.ToImage(),
+        v2.Resize(256),
+        v2.CenterCrop(224),
+        v2.ToTensor(),
+        v2.ToDtype(torch.float32),
+        v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    def __init__(self, path, transform=None) -> None:
         super().__init__()
         self.path = path
         self.transform = transform

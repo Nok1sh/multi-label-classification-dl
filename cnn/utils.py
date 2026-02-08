@@ -17,9 +17,9 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 classes = MultiLabelDataset.CLASSES
 
 def learning_curve(history):
-    fig, axes = plt.subplots(1, 2, figsize=(14, 8))
+    fig, axes = plt.subplots(1, 3, figsize=(14, 8))
 
-    train_loss, train_acc, val_loss, val_acc = history
+    train_loss, train_acc, val_loss, val_acc, f1_train, f1_val = history
     
     axes[0].set_title("Loss")
     axes[0].plot(train_loss, color="blue", label="train")
@@ -34,6 +34,13 @@ def learning_curve(history):
     axes[1].legend()
     axes[1].set_xlabel("Epoch")
     axes[1].set_ylabel("Accuracy")
+
+    axes[2].set_title("F1 score")
+    axes[2].plot(f1_train, color="blue", label="train")
+    axes[2].plot(f1_val, color="red", label="validation")
+    axes[2].legend()
+    axes[2].set_xlabel("Epoch")
+    axes[2].set_ylabel("F1 score")
 
     fig.suptitle("Train History")
     plt.tight_layout()

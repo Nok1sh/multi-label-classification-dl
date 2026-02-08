@@ -19,7 +19,7 @@ class ResNetModel(nn.Module):
         ]
     )
 
-    def __init__(self, num_cls=16) -> None:
+    def __init__(self, num_cls=33) -> None:
         super().__init__()
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -88,7 +88,16 @@ class ResNetModel(nn.Module):
         print(f"Metrics this checkpoint: {checkpoint["metrics"]}")
 
         return model
+    
+    @classmethod
+    def get_optimizer_and_scheduler_from_checkpoint(cls, epoch):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        checkpoint = torch.load(f"checkpoints/checkpoint_{epoch}.pth", map_location=device)
 
+        optimizer_state = checkpoint["optimizer_state_dict"]
+        scheduler_state = checkpoint["scheduler_state_dict"]
+
+        return optimizer_state, scheduler_state
     
     def predict_proba(self, x):
         device = "cuda" if torch.cuda.is_available() else "cpu"

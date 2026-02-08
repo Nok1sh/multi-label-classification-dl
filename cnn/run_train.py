@@ -1,20 +1,35 @@
+import numpy as np
 import torch
 
 from torch import nn
 from torch.optim import lr_scheduler, Adam
 from tqdm import tqdm
+from sklearn.metrics import f1_score
 
 
-def run_epochs(epochs, train_data, val_data, model, threshold=0.5, early_stop=False):
-    optimizer = Adam(model.parameters(), lr = 0.1)
+def run_epochs(
+               epochs, 
+               train_data, 
+               val_data, model, 
+               threshold=0.5, 
+               early_stop=False, 
+               optimizer_state=None, 
+               scheduler_state=None
+               ):
+    optimizer = Adam(model.parameters(), lr = 0.001)
+    optimizer = optimizer if optimizer_state is None else optimizer.load_state_dict(optimizer_state)
 
     scheduler = lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode="min",
-        factor=0.1,
-        patience=10,
-        threshold=0.0001
+        factor=0.5,
+        patience=4,
+        threshold=0.01,
+        min_lr=1e-6
     )
+
+    scheduler = scheduler if scheduler_state is None else scheduler.load_state_dict(scheduler_state)
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     loss_fucntion = nn.BCEWithLogitsLoss()
@@ -22,18 +37,24 @@ def run_epochs(epochs, train_data, val_data, model, threshold=0.5, early_stop=Fa
     best_loss = None
     best_version = None
     count_steps = 0
-    count_steps_without_better = 12
+    patience = 12
 
     train_loss = []
     train_acc = []
+    f1_train = []
     val_loss = []
     val_acc = []
+    f1_val = []
 
     for epoch in range(epochs):
 
         model.train()
         running_train_loss = []
+        all_targets = []
+        all_preds = []
         true_answer = 0
+        total = 0
+        f1_score_train = 0
 
         train_loop = tqdm(train_data, leave=False)
 
@@ -54,21 +75,35 @@ def run_epochs(epochs, train_data, val_data, model, threshold=0.5, early_stop=Fa
             mean_train_loss = sum(running_train_loss)/len(running_train_loss)
 
             pred = (torch.sigmoid(pred) > threshold).float()
-            true_answer += (pred == target).sum().item()
+            true_answer += (pred == target).all(axis=1).sum().item()
+            total += target.size(0)
+
+            all_targets.append(target.cpu().numpy())
+            all_preds.append(pred.cpu().numpy())
 
             train_loop.set_description(f"Epoch: [{epoch+1}/{epochs}], train_loos: {mean_train_loss:.4f}")
 
-        total_predictions = len(train_data.dataset) * target.size(1)
-        running_train_acc = true_answer/total_predictions
+            
+
+        all_targets = np.vstack(all_targets)
+        all_preds = np.vstack(all_preds)
+        f1_score_train = f1_score(all_targets, all_preds, average="samples")
+
+        running_train_acc = true_answer/total
 
         train_loss.append(mean_train_loss)
         train_acc.append(running_train_acc)
+        f1_train.append(f1_score_train)
         
 
         model.eval()
         with torch.no_grad():
             running_val_loss = []
+            all_targets = []
+            all_preds = []
             true_answer = 0
+            total = 0
+            f1_score_val = 0
             val_loop = tqdm(val_data, leave=False)
             for img, target in val_loop:
 
@@ -82,13 +117,21 @@ def run_epochs(epochs, train_data, val_data, model, threshold=0.5, early_stop=Fa
                 mean_val_loss = sum(running_val_loss)/len(running_val_loss)
 
                 pred = (torch.sigmoid(pred) > threshold).float()
-                true_answer += (pred == target).sum().item()
+                true_answer += (pred == target).all(axis=1).sum().item()
+                total += target.size(0)
 
-            total_predictions = len(val_data.dataset) * target.size(1)
-            running_val_acc = true_answer/total_predictions
+                all_targets.append(target.cpu().numpy())
+                all_preds.append(pred.cpu().numpy())
+
+            running_val_acc = true_answer/total
+
+            all_targets = np.vstack(all_targets)
+            all_preds = np.vstack(all_preds)
+            f1_score_val = f1_score(all_targets, all_preds, average="samples")
 
             val_loss.append(mean_val_loss)
             val_acc.append(running_val_acc)
+            f1_val.append(f1_score_val)
 
         scheduler.step(mean_val_loss)
 
@@ -114,7 +157,7 @@ def run_epochs(epochs, train_data, val_data, model, threshold=0.5, early_stop=Fa
             best_version = epoch
             count_steps = 0
     
-        if count_steps >= count_steps_without_better and early_stop:
+        if count_steps >= patience and early_stop:
             print(f"Stopped train on {epoch} epoch")
             print(f"Best loss: {best_loss}\nBest version model: {best_version}")
             break
@@ -124,18 +167,24 @@ def run_epochs(epochs, train_data, val_data, model, threshold=0.5, early_stop=Fa
     return [
             train_loss,
             train_acc,
+            f1_train,
             val_loss,
-            val_acc
+            val_acc,
+            f1_val
     ]
 
 def test_model(test_data, model, threshold=0.5):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     loss_fucntion = nn.BCEWithLogitsLoss()
     running_test_loss = []
+    all_targets = []
+    all_preds = []
 
     model.eval()
     with torch.no_grad():
         true_answer = 0
+        total = 0
+        f1 = 0
         test_loop = tqdm(test_data, leave=False)
         for img, target in test_loop:
 
@@ -149,11 +198,19 @@ def test_model(test_data, model, threshold=0.5):
             mean_test_loss = sum(running_test_loss)/len(running_test_loss)
 
             pred = (torch.sigmoid(pred) > threshold).float()
-            true_answer += (pred == target).sum().item()
+            true_answer += (pred == target).all(axis=1).sum().item()
+            total += target.size(0)
 
-        total_predictions = len(test_data.dataset) * target.size(1)
-        running_test_acc = true_answer/total_predictions
+            all_targets.append(target.cpu().numpy())
+            all_preds.append(pred.cpu().numpy())
+
+
+        all_targets = np.vstack(all_targets)
+        all_preds = np.vstack(all_preds)
+        f1 = f1_score(all_targets, all_preds, average="samples")
+
+        running_test_acc = true_answer/total
     
-    return f"Loss: {mean_test_loss}\nAccuracy: {running_test_acc}"
+    return f"Loss: {mean_test_loss}\nAccuracy: {running_test_acc}\nF1 score: {f1}"
 
         
