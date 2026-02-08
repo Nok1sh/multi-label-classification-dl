@@ -7,6 +7,21 @@ from tqdm import tqdm
 from sklearn.metrics import f1_score
 
 
+def compute_pos_weight(train_data, num_classes, device):
+    pos = torch.zeros(num_classes)
+    total = 0
+
+    for _, targets in train_data:
+        pos += targets.sum(dim=0)
+        total += targets.size(0)
+
+    neg = total - pos
+    pos_weight = neg / (pos + 1e-6)
+
+    return pos_weight.to(device)
+
+
+
 def run_epochs(
                epochs, 
                train_data, 
@@ -14,7 +29,8 @@ def run_epochs(
                threshold=0.5, 
                early_stop=False, 
                optimizer_state=None, 
-               scheduler_state=None
+               scheduler_state=None,
+               ft=False
                ):
     optimizer = Adam(model.parameters(), lr = 0.001)
     optimizer = optimizer if optimizer_state is None else optimizer.load_state_dict(optimizer_state)
@@ -32,7 +48,9 @@ def run_epochs(
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    loss_fucntion = nn.BCEWithLogitsLoss()
+    loss_fucntion = nn.BCEWithLogitsLoss(
+        pos_weight=compute_pos_weight(train_data, 33, device)
+        )
 
     best_loss = None
     best_version = None
@@ -50,10 +68,9 @@ def run_epochs(
 
         model.train()
         running_train_loss = []
+        running_train_acc = 0
         all_targets = []
         all_preds = []
-        true_answer = 0
-        total = 0
         f1_score_train = 0
 
         train_loop = tqdm(train_data, leave=False)
@@ -75,8 +92,9 @@ def run_epochs(
             mean_train_loss = sum(running_train_loss)/len(running_train_loss)
 
             pred = (torch.sigmoid(pred) > threshold).float()
-            true_answer += (pred == target).all(axis=1).sum().item()
-            total += target.size(0)
+
+            batch_acc = (pred == target).float().mean().item()
+            running_train_acc += batch_acc
 
             all_targets.append(target.cpu().numpy())
             all_preds.append(pred.cpu().numpy())
@@ -89,7 +107,7 @@ def run_epochs(
         all_preds = np.vstack(all_preds)
         f1_score_train = f1_score(all_targets, all_preds, average="samples")
 
-        running_train_acc = true_answer/total
+        running_train_acc /= len(train_data)
 
         train_loss.append(mean_train_loss)
         train_acc.append(running_train_acc)
@@ -101,8 +119,7 @@ def run_epochs(
             running_val_loss = []
             all_targets = []
             all_preds = []
-            true_answer = 0
-            total = 0
+            running_val_acc = 0
             f1_score_val = 0
             val_loop = tqdm(val_data, leave=False)
             for img, target in val_loop:
@@ -117,13 +134,14 @@ def run_epochs(
                 mean_val_loss = sum(running_val_loss)/len(running_val_loss)
 
                 pred = (torch.sigmoid(pred) > threshold).float()
-                true_answer += (pred == target).all(axis=1).sum().item()
-                total += target.size(0)
+
+                batch_acc = (pred == target).float().mean().item()
+                running_val_acc += batch_acc
 
                 all_targets.append(target.cpu().numpy())
                 all_preds.append(pred.cpu().numpy())
 
-            running_val_acc = true_answer/total
+            running_val_acc /= len(val_data)
 
             all_targets = np.vstack(all_targets)
             all_preds = np.vstack(all_preds)
@@ -146,7 +164,10 @@ def run_epochs(
                 "scheduler_state_dict": scheduler.state_dict(),
                 "metrics": {"train_loos": mean_train_loss, "train_acc": running_train_acc, "val_loos": mean_val_loss,  "val_acc": running_val_acc}
             }
-            model.save_checkpoint(state, epoch)
+            if ft:
+                model.save_checkpoint(state, epoch, ft=True)
+            else:
+                model.save_checkpoint(state, epoch)
         
         if best_loss is None:
             best_loss = mean_val_loss
@@ -184,7 +205,7 @@ def test_model(test_data, model, threshold=0.5):
     with torch.no_grad():
         true_answer = 0
         total = 0
-        f1 = 0
+        running_test_acc = 0
         test_loop = tqdm(test_data, leave=False)
         for img, target in test_loop:
 
@@ -198,8 +219,9 @@ def test_model(test_data, model, threshold=0.5):
             mean_test_loss = sum(running_test_loss)/len(running_test_loss)
 
             pred = (torch.sigmoid(pred) > threshold).float()
-            true_answer += (pred == target).all(axis=1).sum().item()
-            total += target.size(0)
+
+            batch_acc = (pred == target).float().mean().item()
+            running_test_acc += batch_acc
 
             all_targets.append(target.cpu().numpy())
             all_preds.append(pred.cpu().numpy())
@@ -209,7 +231,7 @@ def test_model(test_data, model, threshold=0.5):
         all_preds = np.vstack(all_preds)
         f1 = f1_score(all_targets, all_preds, average="samples")
 
-        running_test_acc = true_answer/total
+        running_test_acc /= len(test_data)
     
     return f"Loss: {mean_test_loss}\nAccuracy: {running_test_acc}\nF1 score: {f1}"
 

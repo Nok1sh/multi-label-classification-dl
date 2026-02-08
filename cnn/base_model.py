@@ -55,8 +55,11 @@ class ResNetModel(nn.Module):
         for param in self.model.layer4.parameters():
             param.requires_grad = True
     
-    def save_checkpoint(self, state, epoch):
-        torch.save(state, f"checkpoints/checkpoint_{epoch+1}.pth")
+    def save_checkpoint(self, state, epoch, ft=False):
+        if ft:
+            torch.save(state, f"checkpoints_ft/checkpoint_{epoch+1}.pth")
+        else:
+            torch.save(state, f"checkpoints/checkpoint_{epoch+1}.pth")
     
     @classmethod
     def load_checkpoint(cls, epoch, optimizer=None, scheduler=None):
