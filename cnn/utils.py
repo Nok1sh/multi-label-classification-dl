@@ -17,30 +17,47 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 classes = MultiLabelDataset.CLASSES
 
 def learning_curve(history):
-    fig, axes = plt.subplots(1, 3, figsize=(14, 8))
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
 
-    train_loss, train_acc, val_loss, val_acc, f1_train, f1_val = history
+    train_loss, train_acc, val_loss, val_acc, f1_val_s, f1_val_m, f1_val_w, mAP_val = history
     
-    axes[0].set_title("Loss")
-    axes[0].plot(train_loss, color="blue", label="train")
-    axes[0].plot(val_loss, color="red", label="validation")
-    axes[0].legend()
-    axes[0].set_xlabel("Epoch")
-    axes[0].set_ylabel("Loss")
+    axes[0][0].set_title("Loss")
+    axes[0][0].plot(train_loss, color="blue", label="train")
+    axes[0][0].plot(val_loss, color="red", label="validation")
+    axes[0][0].legend()
+    axes[0][0].set_xlabel("Epoch")
+    axes[0][0].set_ylabel("Loss")
 
-    axes[1].set_title("Accuracy")
-    axes[1].plot(train_acc, color="blue", label="train")
-    axes[1].plot(val_acc, color="red", label="validation")
-    axes[1].legend()
-    axes[1].set_xlabel("Epoch")
-    axes[1].set_ylabel("Accuracy")
+    axes[0][1].set_title("Accuracy")
+    axes[0][1].plot(train_acc, color="blue", label="train")
+    axes[0][1].plot(val_acc, color="red", label="validation")
+    axes[0][1].legend()
+    axes[0][1].set_xlabel("Epoch")
+    axes[0][1].set_ylabel("Accuracy")
 
-    axes[2].set_title("F1 score")
-    axes[2].plot(f1_train, color="blue", label="train")
-    axes[2].plot(f1_val, color="red", label="validation")
-    axes[2].legend()
-    axes[2].set_xlabel("Epoch")
-    axes[2].set_ylabel("F1 score")
+    axes[0][2].set_title("Mean Average Precision")
+    axes[0][2].plot(mAP_val, color="red", label="validation")
+    axes[0][2].legend()
+    axes[0][2].set_xlabel("Epoch")
+    axes[0][2].set_ylabel("mAP")
+
+    axes[1][0].set_title("F1 score samples")
+    axes[1][0].plot(f1_val_s, color="red", label="validation")
+    axes[1][0].legend()
+    axes[1][0].set_xlabel("Epoch")
+    axes[1][0].set_ylabel("F1 score")
+
+    axes[1][1].set_title("F1 score macro")
+    axes[1][1].plot(f1_val_m, color="red", label="validation")
+    axes[1][1].legend()
+    axes[1][1].set_xlabel("Epoch")
+    axes[1][1].set_ylabel("F1 score")
+
+    axes[1][2].set_title("F1 score weighted")
+    axes[1][2].plot(f1_val_w, color="red", label="validation")
+    axes[1][2].legend()
+    axes[1][2].set_xlabel("Epoch")
+    axes[1][2].set_ylabel("F1 score")
 
     fig.suptitle("Train History")
     plt.tight_layout()
@@ -57,7 +74,7 @@ def predict_model(model, img):
 
     cls_ind = 0
     for cls, p in zip(classes.values(), pred.numpy()[0]):
-        if p >= 0.5:
+        if p >= 0.27:
             tags.append((cls, round(float(p), 2), cls_ind))
         cls_ind += 1
         

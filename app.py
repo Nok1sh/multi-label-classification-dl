@@ -13,8 +13,7 @@ from ui_style import colored_progress, colored_button
 @st.cache_resource
 def load_model():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = ResNetModel.load_checkpoint(0)
-    model.unfreeze_last_layer
+    model = ResNetModel.load_checkpoint(0, validate=True)
     model.to(device)
     model.eval()
 

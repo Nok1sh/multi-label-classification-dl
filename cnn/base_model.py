@@ -19,18 +19,23 @@ class ResNetModel(nn.Module):
         ]
     )
 
-    def __init__(self, num_cls=33) -> None:
+    def __init__(self, num_cls=80, threshold=0.5) -> None:
         super().__init__()
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.num_cls = num_cls
 
-        self.model = models.resnet18(weights="DEFAULT").to(device)
+        self.threshold_probability = threshold
+
+        self.model = models.resnet34(weights="DEFAULT").to(device)
 
         for param in self.model.parameters():
             param.requires_grad = False
         
-        self.model.fc = nn.Linear(512, self.num_cls)
+        self.model.fc = nn.Sequential(
+            nn.Dropout(0.5), 
+            nn.Linear(512, self.num_cls)
+        )
     
     @property
     def info(self):
@@ -51,8 +56,8 @@ class ResNetModel(nn.Module):
                         print(f"bias.requires_grad = {param.requires_grad}", end="\n")
     
     @property
-    def unfreeze_last_layer(self):
-        for param in self.model.layer4.parameters():
+    def unfreeze_layers(self):
+        for param in self.model.parameters():
             param.requires_grad = True
     
     def save_checkpoint(self, state, epoch, ft=False):
@@ -62,22 +67,28 @@ class ResNetModel(nn.Module):
             torch.save(state, f"checkpoints/checkpoint_{epoch+1}.pth")
     
     @classmethod
-    def load_checkpoint(cls, epoch, optimizer=None, scheduler=None):
+    def load_checkpoint(cls, epoch, optimizer=None, ft=False, validate=False):
         """
         checkpoint = {
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),
                 "num_classes": model.num_cls,
+                "threshold": model.threshold_probability,
                 "optimizer_state_dict": optimizer.state_dict(),
-                "scheduler_state_dict": scheduler.state_dict(),
                 "metrics": {}
         }
         """
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        checkpoint = torch.load(f"checkpoints/checkpoint_{epoch}.pth", map_location=device)
+        if validate:
+            checkpoint = torch.load(f"models/multilabel_7_ft.pth", map_location=device, weights_only=False)
+        elif ft:
+            checkpoint = torch.load(f"checkpoints_ft/checkpoint_{epoch}.pth", map_location=device, weights_only=False)
+        else:
+            checkpoint = torch.load(f"checkpoints/checkpoint_{epoch}.pth", map_location=device, weights_only=False)
 
         model = cls(
-            num_cls = checkpoint["num_cls"]
+            num_cls = checkpoint["num_cls"],
+            threshold = checkpoint["threshold"]
         )
 
         model.load_state_dict(checkpoint["model_state_dict"])
@@ -85,8 +96,6 @@ class ResNetModel(nn.Module):
 
         if optimizer is not None:
             optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        if scheduler is not None:
-            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
         
         print(f"Metrics this checkpoint: {checkpoint["metrics"]}")
 
@@ -104,7 +113,6 @@ class ResNetModel(nn.Module):
     
     def predict_proba(self, x):
         device = "cuda" if torch.cuda.is_available() else "cpu"
-
         self.eval()
         with torch.no_grad():
             x = x.to(device)

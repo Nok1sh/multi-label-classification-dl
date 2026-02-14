@@ -1,12 +1,10 @@
 __pycache__
 .venv
 data/__pycache__
-data/csv_tables
-data/images
-data/labels
-data/image_ids.npy
-data/image_list_test.txt
-data/image_list_val.txt
-data/image_list.txt
 data/test.ipynb
 test.ipynb
+weights
+models
+models/multilabel_7_ft.pth
+models/multilabel_7_p.pth
+*.png
