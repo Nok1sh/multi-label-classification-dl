@@ -28,7 +28,7 @@ def colored_progress(
                 justify-content: flex-end;
                 padding-right: 6px;
                 color: white;
-                font-size: 12px;
+                font-size: 20px;
                 font-weight: 500;
             ">
                 {percent}%
@@ -51,7 +51,7 @@ def colored_button():
             text-align: center;
             text-decoration: none;
             display: inline-block;
-            font-size: 16px;
+            font-size: 20px !important;
             margin: 4px 2px;
             cursor: pointer;
             border-radius: 8px;
@@ -67,6 +67,65 @@ def colored_button():
             background-color: #3d8b40;
         }
 
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+def text_styles():
+    st.markdown(
+        """
+        <style>
+        .text-title {
+            font-family: 'Georgia', serif;
+            font-size: 28px;
+            font-weight: bold;
+            color: #2E8B57;
+            margin-bottom: 10px;
+        }
+
+        .text-subtitle {
+            font-family: 'Arial', sans-serif;
+            font-size: 24px !important;
+            color: #444444;
+            margin-bottom: 8px;
+        }
+
+        .text-body {
+            font-family: 'Arial', sans-serif;
+            font-size: 24px !important;
+            color: #333333;
+            line-height: 1.5;
+            margin-bottom: 2px !important;
+        }
+
+        .text-caption {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #888888;
+        }
+
+                </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+def select_box_style():
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stSelectbox"] > div > div {
+            font-size: 20px !important;
+            font-family: Arial, sans-serif !important;
+        }
+
+        div[data-testid="stSelectbox"] .stSelectbox div[data-baseweb="select"] span {
+            font-size: 20px !important;
+        }
+
+        div[data-testid="stSelectbox"] .stSelectbox div[role="listbox"] div {
+            font-size: 18px !important;
+        }
         </style>
         """,
         unsafe_allow_html=True

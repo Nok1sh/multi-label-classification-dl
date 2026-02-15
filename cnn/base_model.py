@@ -60,6 +60,11 @@ class ResNetModel(nn.Module):
         for param in self.model.parameters():
             param.requires_grad = True
     
+    @property
+    def unfreeze_last_layer(self):
+        for param in self.model.layer4.parameters():
+            param.requires_grad = True
+    
     def save_checkpoint(self, state, epoch, ft=False):
         if ft:
             torch.save(state, f"checkpoints_ft/checkpoint_{epoch+1}.pth")
