@@ -9,7 +9,7 @@
  >```
  > To launch the interface
  > ```python 
- >streaumlit run app.py
+ >streamlit run app.py
  >```
  
 
