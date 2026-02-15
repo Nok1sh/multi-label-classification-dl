@@ -15,7 +15,7 @@
 
 ## 🖼️What is the repository about?
 
-This project is a research in the field of deep learning and computer vision. I worked with multi-label classification using the pre-trained ResNet34.
+This project is a research in the field of deep learning and computer vision. I worked with multi-label classification using the pre-trained ResNet34. Streamlit was used as the interface.
 
 ## Examples of how the model works
 ![](data/examples_work.png)
