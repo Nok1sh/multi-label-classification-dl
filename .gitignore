@@ -7,4 +7,3 @@ weights
 models
 models/multilabel_7_ft.pth
 models/multilabel_7_p.pth
-*.png

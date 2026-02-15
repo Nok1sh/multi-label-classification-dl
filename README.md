@@ -18,7 +18,7 @@
 This project is a research in the field of deep learning and computer vision. I worked with multi-label classification using the pre-trained ResNet34.
 
 ## Examples of how the model works
-![](examples_work.png)
+![](data/examples_work.png)
 
 ## 🗂️Dataset
 
@@ -42,13 +42,13 @@ After testing the models, I chose the model that performed the best in the secon
 ## 📈Learning curves
 
 ### 1️⃣First stage
-![alt text](train_1.png) 
+![](data/train_1.png) 
 
 ### 2️⃣Second stage
-![alt text](train_2.png)
+![](data/train_2.png)
 
 ### 3️⃣Third stage
-![alt text](train_3.png)
+![](data/train_3.png)
 
 ## Conclusions
 
